@@ -1006,4 +1006,17 @@ print("restaurantes : " + db.restaurantes.countDocuments());
 print("menu_items   : " + db.menu_items.countDocuments());
 print("ordenes      : " + db.ordenes.countDocuments());
 print("resenas      : " + db.resenas.countDocuments());
+
+print("\nAplicando índices recomendados...");
+try {
+  load("backend/03_indexes.mongodb.js");
+} catch (errorBackendPath) {
+  try {
+    load("03_indexes.mongodb.js");
+  } catch (errorLocalPath) {
+    print("No se pudo cargar el script de índices automáticamente.");
+    print("Ejecuta manualmente: load('backend/03_indexes.mongodb.js')");
+  }
+}
+
 print("Script completado.");
