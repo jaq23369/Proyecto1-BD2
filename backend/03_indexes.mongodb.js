@@ -184,6 +184,26 @@ ensureIndex(
   "Refuerza regla de negocio: 1 reseña por orden."
 );
 
+// ---------------------------------------------------------------
+// Shard key indexes — evidencia de diseno de sharding
+//
+// menu_items  -> cubierto por idx_menu_items_rest_disponible_categoria
+//               (restaurante_id es prefijo)
+// resenas     -> cubierto por idx_resenas_restaurante_fecha
+//               (restaurante_id es prefijo)
+// ordenes     -> idx_ordenes_rest_estado_fecha NO cubre la shard key
+//               { restaurante_id, fecha_creacion } porque estado_orden
+//               interrumpe el prefijo; se crea el indice especifico.
+// ---------------------------------------------------------------
+
+// SK-1) Shard key de ordenes: { restaurante_id: 1, fecha_creacion: 1 }
+ensureIndex(
+  "ordenes",
+  { restaurante_id: 1, fecha_creacion: 1 },
+  { name: "idx_sk_ordenes_restaurante_fecha" },
+  "Shard key compuesto de ordenes: evita hotspots monotonos y soporta query targeting por restaurante + rango de fecha."
+);
+
 print("\n=== Resumen de índices por colección ===");
 ["usuarios", "restaurantes", "menu_items", "ordenes", "resenas"].forEach(function (name) {
   const indexes = db.getCollection(name).getIndexes().map(function (idx) {
