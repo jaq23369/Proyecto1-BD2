@@ -230,25 +230,40 @@ export default function NuevaOrdenPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {menuItems.map((item) => {
                     const qty = getQty(item._id);
+                    const mainImg = item.imagenes?.find((i) => i.principal) ?? item.imagenes?.[0];
+                    const imgSrc = mainImg
+                      ? (mainImg.url.startsWith("http") ? mainImg.url : `http://localhost:4000${mainImg.url}`)
+                      : null;
                     return (
-                      <div key={item._id} className="flex items-center justify-between gap-3 p-3 border border-gray-100 rounded-xl hover:border-amber-100 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{item.nombre}</p>
-                          <p className="text-xs text-amber-600 font-semibold">{formatCurrency(item.precio, item.moneda)}</p>
+                      <div key={item._id} className="flex items-center gap-3 border border-slate-200/60 rounded-xl overflow-hidden hover:border-brand-200 hover:shadow-soft transition-all bg-white">
+                        {/* Thumbnail */}
+                        {imgSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={imgSrc} alt={item.nombre} className="w-16 h-16 object-cover shrink-0" />
+                        ) : (
+                          <div className="w-16 h-16 bg-slate-100 flex items-center justify-center shrink-0">
+                            <span className="text-base font-black text-slate-300 select-none">
+                              {item.nombre.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0 py-2 pr-1">
+                          <p className="text-sm font-semibold text-slate-800 truncate leading-tight">{item.nombre}</p>
+                          <p className="text-xs text-brand-600 font-bold mt-0.5">{formatCurrency(item.precio, item.moneda)}</p>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 pr-3">
                           {qty > 0 ? (
                             <>
                               <button
                                 onClick={() => updateQty(item, -1)}
-                                className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 cursor-pointer transition-colors"
+                                className="w-7 h-7 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
                               >
                                 <Minus size={13} />
                               </button>
-                              <span className="text-sm font-bold text-gray-800 w-5 text-center">{qty}</span>
+                              <span className="text-sm font-bold text-slate-800 w-5 text-center">{qty}</span>
                               <button
                                 onClick={() => updateQty(item, 1)}
-                                className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white hover:bg-amber-600 cursor-pointer transition-colors"
+                                className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white hover:bg-brand-700 cursor-pointer transition-colors"
                               >
                                 <Plus size={13} />
                               </button>
@@ -256,7 +271,7 @@ export default function NuevaOrdenPage() {
                           ) : (
                             <button
                               onClick={() => updateQty(item, 1)}
-                              className="w-7 h-7 rounded-full border-2 border-amber-400 flex items-center justify-center text-amber-500 hover:bg-amber-50 cursor-pointer transition-colors"
+                              className="w-7 h-7 rounded-full border-2 border-brand-400 flex items-center justify-center text-brand-500 hover:bg-brand-50 cursor-pointer transition-colors"
                             >
                               <Plus size={13} />
                             </button>

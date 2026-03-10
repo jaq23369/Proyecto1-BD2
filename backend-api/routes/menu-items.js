@@ -1,8 +1,30 @@
+const path     = require("path");
+const fs       = require("fs");
 const { Router }   = require("express");
 const { getDb }    = require("../lib/mongodb");
 const { ObjectId } = require("mongodb");
+const multer   = require("multer");
+const { v4: uuidv4 } = require("uuid");
 
 const router = Router();
+
+const UPLOAD_DIR = path.join(__dirname, "..", "public", "uploads");
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const imgUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename:    (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${uuidv4()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /\.(jpeg|jpg|png|gif|webp)$/.test(path.extname(file.originalname).toLowerCase());
+    cb(ok ? null : new Error("Solo se permiten imágenes"), ok);
+  },
+});
 
 // ---------------------------------------------------------------
 // GET /api/menu-items
@@ -250,6 +272,76 @@ router.delete("/:id/tags/:tag", async (req, res) => {
     );
     if (result.matchedCount === 0) return res.status(404).json({ error: "Menu item no encontrado" });
     res.json({ data: { modifiedCount: result.modifiedCount } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------
+// POST /api/menu-items/:id/imagen
+// Sube una imagen al disco y hace $push a menu_items.imagenes
+// Body: multipart/form-data, campo "file". Opcional: "principal" (bool)
+// ---------------------------------------------------------------
+router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Se requiere un archivo de imagen en el campo 'file'" });
+    const db  = await getDb();
+    const _id = new ObjectId(req.params.id);
+
+    const doc = await db.collection("menu_items").findOne({ _id });
+    if (!doc) {
+      fs.unlinkSync(req.file.path); // limpiar archivo si el item no existe
+      return res.status(404).json({ error: "Menu item no encontrado" });
+    }
+
+    const isPrincipal = req.body.principal === "true";
+    const imgEntry = { url: `/uploads/${req.file.filename}`, principal: isPrincipal };
+
+    const update = { $push: { imagenes: imgEntry }, $set: { fecha_actualizacion: new Date() } };
+    // Si es principal, desmarcar las demás
+    if (isPrincipal) {
+      await db.collection("menu_items").updateOne(
+        { _id },
+        { $set: { "imagenes.$[].principal": false } }
+      );
+    }
+    await db.collection("menu_items").updateOne({ _id }, update);
+
+    const updated = await db.collection("menu_items").findOne({ _id }, { projection: { imagenes: 1 } });
+    res.status(201).json({ data: updated.imagenes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------
+// DELETE /api/menu-items/:id/imagen
+// Body JSON: { url: "/uploads/uuid.jpg" } o URL externa
+// Elimina del array y del disco si es local
+// ---------------------------------------------------------------
+router.delete("/:id/imagen", async (req, res) => {
+  try {
+    const db  = await getDb();
+    const _id = new ObjectId(req.params.id);
+    const { url: urlToRemove } = req.body;
+
+    if (!urlToRemove) return res.status(400).json({ error: "url es obligatorio en el body" });
+
+    const result = await db.collection("menu_items").updateOne(
+      { _id },
+      { $pull: { imagenes: { url: urlToRemove } }, $set: { fecha_actualizacion: new Date() } }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ error: "Menu item no encontrado" });
+
+    // Solo eliminar del disco si es una imagen local (/uploads/...)
+    if (urlToRemove.startsWith("/uploads/")) {
+      const filename = path.basename(urlToRemove);
+      const filePath = path.join(UPLOAD_DIR, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    const updated = await db.collection("menu_items").findOne({ _id }, { projection: { imagenes: 1 } });
+    res.json({ data: updated.imagenes });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

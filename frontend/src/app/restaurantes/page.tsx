@@ -94,13 +94,13 @@ export default function RestaurantesPage() {
     <PageWrapper>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8 bg-white p-6 rounded-[2rem] shadow-soft border border-slate-100">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/20">
-            <UtensilsCrossed size={24} className="text-white" />
+        <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-brand-600 shadow-md shadow-brand-600/25">
+            <UtensilsCrossed size={22} className="text-white" strokeWidth={2} />
           </div>
           <div>
             <h1 className="text-3xl font-heading font-black tracking-tight text-slate-900">Restaurantes</h1>
-            <p className="text-sm font-medium text-slate-500 mt-1">Explora las mejores opciones cerca de ti</p>
+            <p className="text-sm font-medium text-slate-500 mt-0.5">Explora las mejores opciones cerca de ti</p>
           </div>
         </div>
 

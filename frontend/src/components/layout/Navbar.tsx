@@ -15,7 +15,6 @@ import {
   User,
   Upload,
   Sparkles,
-  ChevronDown
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -29,13 +28,13 @@ interface NavLink {
 }
 
 const allLinks: NavLink[] = [
-  { href: "/restaurantes", label: "Explorar", icon: <Sparkles size={16} /> },
-  { href: "/ordenes", label: "Pedidos", icon: <ShoppingBag size={16} /> },
-  { href: "/resenas", label: "Resenas", icon: <Star size={16} /> },
-  { href: "/menu-items", label: "Menu", icon: <Utensils size={16} />, adminOnly: true },
-  { href: "/usuarios", label: "Usuarios", icon: <Users size={16} />, adminOnly: true },
-  { href: "/uploads", label: "Archivos", icon: <Upload size={16} />, adminOnly: true },
-  { href: "/analytics", label: "Stats", icon: <BarChart2 size={16} />, adminOnly: true },
+  { href: "/restaurantes", label: "Explorar",  icon: <Sparkles size={15} /> },
+  { href: "/ordenes",      label: "Pedidos",   icon: <ShoppingBag size={15} /> },
+  { href: "/resenas",      label: "Reseñas",   icon: <Star size={15} /> },
+  { href: "/menu-items",   label: "Menú",      icon: <Utensils size={15} />, adminOnly: true },
+  { href: "/usuarios",     label: "Usuarios",  icon: <Users size={15} />, adminOnly: true },
+  { href: "/uploads",      label: "Archivos",  icon: <Upload size={15} />, adminOnly: true },
+  { href: "/analytics",   label: "Analytics", icon: <BarChart2 size={15} />, adminOnly: true },
 ];
 
 export function Navbar() {
@@ -44,92 +43,97 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const visibleLinks = allLinks.filter((l) => !l.adminOnly || isAdmin);
-
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <nav className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4 w-full sm:px-6 pointer-events-none">
-      <div className="pointer-events-auto flex items-center justify-between h-16 px-4 w-full max-w-6xl glass-panel rounded-full relative">
-        <div className="flex items-center w-full justify-between">
-          {/* Logo */}
-          <Link href="/restaurantes" className="flex items-center gap-3 shrink-0 mr-6 group">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/30 group-hover:scale-105 transition-transform duration-300">
-              <Utensils size={18} className="text-white fill-white/20" />
-            </div>
-            <span className="font-heading font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-400 text-xl hidden sm:block">
-              FoodHub
-            </span>
-          </Link>
+    <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 sm:px-6 pointer-events-none">
+      {/* Main bar */}
+      <div className="pointer-events-auto flex items-center justify-between h-[60px] px-5 w-full max-w-6xl glass-panel mt-3 rounded-2xl relative">
 
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-1.5 flex-1">
-            {visibleLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ease-out",
-                  isActive(link.href)
-                    ? "bg-brand-50 text-brand-600 shadow-sm ring-1 ring-brand-100"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                )}
-              >
-                {link.icon}
-                {link.label}
-              </Link>
-            ))}
+        {/* Logo */}
+        <Link href="/restaurantes" className="flex items-center gap-2.5 shrink-0 group">
+          <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-brand-600 shadow-md shadow-brand-600/25 group-hover:shadow-brand-600/40 transition-shadow">
+            <Utensils size={15} className="text-white" strokeWidth={2.5} />
           </div>
+          <span className="font-heading font-black tracking-tight text-slate-900 text-[17px] hidden sm:block">
+            Food<span className="text-brand-600">Hub</span>
+          </span>
+        </Link>
 
-          {/* Right side */}
-          <div className="hidden md:flex items-center gap-4">
-            {user ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center pl-1 pr-4 py-1 bg-white/50 backdrop-blur-md rounded-full shadow-sm ring-1 ring-slate-200/50">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 mr-3 border border-slate-200">
-                    <User size={14} className="text-slate-600" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-800 leading-tight max-w-[120px] truncate">
-                      {user.nombre}
-                    </span>
-                    {isAdmin && (
-                      <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider">
-                        Admin
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => logout()}
-                  className="flex flex-col items-center justify-center w-10 h-10 rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm ring-1 ring-slate-200/50 cursor-pointer"
-                  title="Cerrar sesion"
-                >
-                  <LogOut size={16} />
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-brand-500/20 bg-gradient-to-r from-brand-400 to-brand-600 text-white hover:from-brand-500 hover:to-brand-700 transition-all hover:scale-105 active:scale-95"
-              >
-                Ingresar
-              </Link>
-            )}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer shadow-sm ring-1 ring-slate-200/50"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Menu"
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center gap-0.5 flex-1 ml-8">
+          {visibleLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150",
+                isActive(link.href)
+                  ? "text-brand-600 bg-brand-50"
+                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/70"
+              )}
+            >
+              {link.icon}
+              {link.label}
+              {isActive(link.href) && (
+                <motion.span
+                  layoutId="nav-indicator"
+                  className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500"
+                />
+              )}
+            </Link>
+          ))}
         </div>
+
+        {/* Right: user */}
+        <div className="hidden md:flex items-center gap-2">
+          {user ? (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-brand-100">
+                  <User size={12} className="text-brand-700" />
+                </div>
+                <div className="flex flex-col leading-none">
+                  <span className="text-[13px] font-semibold text-slate-800 max-w-[110px] truncate">
+                    {user.nombre}
+                  </span>
+                  {isAdmin && (
+                    <span className="text-[10px] font-bold text-brand-600 uppercase tracking-widest">
+                      Admin
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => logout()}
+                title="Cerrar sesión"
+                className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer border border-transparent hover:border-red-100"
+              >
+                <LogOut size={15} />
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-bold bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-sm shadow-brand-600/20"
+            >
+              Ingresar
+            </Link>
+          )}
+        </div>
+
+        {/* Mobile hamburger */}
+        <button
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="Menú"
+        >
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile dropdown */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -138,41 +142,42 @@ export function Navbar() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="pointer-events-auto absolute top-full left-4 right-4 mt-3 bg-white/95 backdrop-blur-xl rounded-2xl shadow-float border border-slate-100/50 overflow-hidden md:hidden p-2"
+            className="pointer-events-auto absolute top-full left-4 right-4 mt-1 bg-white rounded-2xl shadow-float border border-slate-100 overflow-hidden md:hidden p-2"
           >
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               {visibleLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                    "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all",
                     isActive(link.href)
-                      ? "bg-amber-50 text-amber-600"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-brand-50 text-brand-600 font-semibold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   )}
                 >
                   {link.icon}
                   {link.label}
                 </Link>
               ))}
+              <div className="my-1 border-t border-slate-100" />
               {user ? (
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
-                  className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer mt-2 bg-slate-50 border border-slate-100"
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
                 >
-                  <LogOut size={16} />
-                  Cerrar sesion
+                  <LogOut size={15} />
+                  Cerrar sesión
                 </button>
               ) : (
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 justify-center px-4 py-3.5 rounded-xl text-sm font-bold bg-brand-500 text-white hover:bg-brand-600 transition-colors mt-2"
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-brand-600 text-white hover:bg-brand-700 transition-colors"
                 >
-                  <User size={16} />
-                  Iniciar Sesion
+                  <User size={15} />
+                  Iniciar sesión
                 </Link>
               )}
             </div>

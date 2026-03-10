@@ -24,4 +24,12 @@ export const menuItemsApi = {
     api.patch("/api/menu-items/bulk-price", data),
   statsCount: () =>
     api.get<SingleResponse<{ disponibles: number; no_disponibles: number; total: number }>>("/api/menu-items/stats/count"),
+  uploadImagen: (id: string, file: File, principal = false) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("principal", String(principal));
+    return api.post<{ data: { url: string; principal: boolean }[] }>(`/api/menu-items/${id}/imagen`, form);
+  },
+  deleteImagen: (id: string, url: string) =>
+    api.delete<{ data: { url: string; principal: boolean }[] }>(`/api/menu-items/${id}/imagen`, { url }),
 };

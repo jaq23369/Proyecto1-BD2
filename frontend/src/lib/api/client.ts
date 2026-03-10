@@ -25,7 +25,7 @@ export const api = {
   post:   <T>(path: string, data: unknown)  => request<T>(path, { method: "POST",   body: data instanceof FormData ? data : JSON.stringify(data) }),
   put:    <T>(path: string, data: unknown)  => request<T>(path, { method: "PUT",    body: JSON.stringify(data) }),
   patch:  <T>(path: string, data: unknown)  => request<T>(path, { method: "PATCH",  body: JSON.stringify(data) }),
-  delete: <T>(path: string)                 => request<T>(path, { method: "DELETE" }),
+  delete: <T>(path: string, data?: unknown)  => request<T>(path, { method: "DELETE", ...(data ? { body: JSON.stringify(data) } : {}) }),
 };
 
 export const BASE_URL = BASE;

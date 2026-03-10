@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit, Trash2, Utensils } from "lucide-react";
+import { Plus, Edit, Trash2, Utensils, ImagePlus, X as XIcon } from "lucide-react";
 import { menuItemsApi } from "@/lib/api/menuItems";
 import { restaurantesApi } from "@/lib/api/restaurantes";
 import { useAuth } from "@/context/AuthContext";
@@ -48,6 +48,10 @@ export default function MenuItemsPage() {
   const [bulkPorcentaje, setBulkPorcentaje] = useState("0");
   const [bulkCategoria, setBulkCategoria] = useState("");
 
+  // Imágenes del item en edición
+  const [editImagenes, setEditImagenes] = useState<{ url: string; principal: boolean }[]>([]);
+  const [imgUploading, setImgUploading] = useState(false);
+
   useEffect(() => {
     restaurantesApi.list({ limit: "200" }).then((r) => setRestaurantes(r.data)).catch(() => {});
     menuItemsApi.statsCount().then((r) => setStats({ disponibles: r.data.disponibles, no_disponibles: r.data.no_disponibles })).catch(() => {});
@@ -81,7 +85,36 @@ export default function MenuItemsPage() {
     setFormNombre(item.nombre); setFormDescripcion(item.descripcion);
     setFormCategoria(item.categoria); setFormPrecio(String(item.precio));
     setFormDisponible(item.disponible); setFormRestauranteId(item.restaurante_id);
+    setEditImagenes(item.imagenes ?? []);
     setEditTarget(item);
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!editTarget || !e.target.files?.[0]) return;
+    setImgUploading(true);
+    try {
+      const res = await menuItemsApi.uploadImagen(editTarget._id, e.target.files[0]);
+      setEditImagenes(res.data);
+      toast("Imagen subida", "success");
+      fetchItems();
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Error al subir imagen", "error");
+    } finally {
+      setImgUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleImageDelete(url: string) {
+    if (!editTarget) return;
+    try {
+      const res = await menuItemsApi.deleteImagen(editTarget._id, url);
+      setEditImagenes(res.data);
+      toast("Imagen eliminada", "success");
+      fetchItems();
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Error al eliminar imagen", "error");
+    }
   }
 
   async function handleCreate() {
@@ -290,7 +323,17 @@ export default function MenuItemsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map((item) => (
-              <div key={item._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow flex flex-col gap-2">
+              <div key={item._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                {/* Imagen principal */}
+                {item.imagenes?.length > 0 && (() => {
+                  const img = item.imagenes.find((i) => i.principal) ?? item.imagenes[0];
+                  const src = img.url.startsWith("http") ? img.url : `http://localhost:4000${img.url}`;
+                  return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={src} alt={item.nombre} className="w-full h-28 object-cover" />
+                  );
+                })()}
+                <div className="p-4 flex flex-col gap-2 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{item.nombre}</h3>
                   <Badge variant={item.disponible ? "green" : "red"} className="shrink-0">
@@ -320,6 +363,7 @@ export default function MenuItemsPage() {
                     </button>
                   </div>
                 </div>
+                </div>
               </div>
             ))}
           </div>
@@ -341,6 +385,43 @@ export default function MenuItemsPage() {
       <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title="Editar Item" size="md">
         <div className="space-y-4">
           {ItemForm}
+
+          {/* Imágenes */}
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-2">Imágenes</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {editImagenes.map((img) => {
+                const displaySrc = img.url.startsWith("http") ? img.url : `http://localhost:4000${img.url}`;
+                return (
+                  <div key={img.url} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={displaySrc} alt="" className="w-full h-full object-cover" />
+                    {img.principal && (
+                      <span className="absolute top-1 left-1 text-[9px] font-bold bg-brand-600 text-white px-1.5 py-0.5 rounded-full">
+                        Principal
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleImageDelete(img.url)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      <XIcon size={10} />
+                    </button>
+                  </div>
+                );
+              })}
+              {editImagenes.length === 0 && (
+                <p className="text-xs text-slate-400">Sin imágenes</p>
+              )}
+            </div>
+            <label className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors
+              ${imgUploading ? "bg-slate-100 text-slate-400 pointer-events-none" : "bg-brand-50 text-brand-700 hover:bg-brand-100"}`}>
+              <ImagePlus size={14} />
+              {imgUploading ? "Subiendo..." : "Subir imagen"}
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={imgUploading} />
+            </label>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" size="sm" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button variant="primary" size="sm" isLoading={formSubmitting} onClick={handleEdit}>Guardar</Button>

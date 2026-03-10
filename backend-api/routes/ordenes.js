@@ -33,6 +33,7 @@ router.get("/", async (req, res) => {
     const {
       usuario_id, restaurante_id, estado_orden,
       startDate, endDate,
+      fecha_desde, fecha_hasta,   // alias que usa el frontend
       sort = "fecha", order = "desc",
       page = 1, limit = 20,
     } = req.query;
@@ -41,14 +42,18 @@ router.get("/", async (req, res) => {
     const limitN = Math.min(100, Math.max(1, parseInt(limit)));
     const skip   = (pageN - 1) * limitN;
 
+    const dateFrom = startDate || fecha_desde;
+    const dateTo   = endDate   || fecha_hasta;
+
     const filter = {};
     if (usuario_id)     filter.usuario_id     = new ObjectId(usuario_id);    // idx_ordenes_usuario_id
     if (restaurante_id) filter.restaurante_id = new ObjectId(restaurante_id); // idx_ordenes_rest_estado_fecha
     if (estado_orden)   filter.estado_orden   = estado_orden;
-    if (startDate || endDate) {
+    if (dateFrom || dateTo) {
       filter.fecha_creacion = {};
       if (startDate) filter.fecha_creacion.$gte = new Date(startDate); // idx_ordenes_fecha_creacion
-      if (endDate)   filter.fecha_creacion.$lte = new Date(endDate);
+      if (dateFrom) filter.fecha_creacion.$gte = new Date(dateFrom);
+      if (dateTo)   filter.fecha_creacion.$lte = new Date(dateTo);
     }
 
     const sortField = sort === "total" ? "resumen_pago.total" : "fecha_creacion";
@@ -219,8 +224,12 @@ router.post("/", async (req, res) => {
       const total    = rounded2(subtotal + costoEnvio + impuestos - descuento);
       const fechaEvento = new Date();
 
+      // Generar código único: ORD-YYYY-XXXXXXXX (timestamp hex)
+      const codigoOrden = body.codigo_orden
+        || `ORD-${fechaEvento.getFullYear()}-${fechaEvento.getTime().toString(36).toUpperCase()}`;
+
       const ordenDoc = {
-        codigo_orden:     body.codigo_orden || null,
+        codigo_orden:     codigoOrden,
         usuario_id:       usuarioId,
         restaurante_id:   restauranteId,
         estado_orden:     ORDER_STATES.CREADA,

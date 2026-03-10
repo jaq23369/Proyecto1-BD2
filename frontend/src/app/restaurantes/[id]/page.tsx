@@ -177,32 +177,51 @@ export default function RestauranteDetailPage() {
               <EmptyState title="Sin items" description="Este restaurante no tiene items en su menu." />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {menuItems.map((item) => (
-                  <div key={item._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-gray-900 text-sm leading-tight">{item.nombre}</h3>
-                      <Badge variant={item.disponible ? "green" : "red"} className="shrink-0">
-                        {item.disponible ? "Disponible" : "No disponible"}
-                      </Badge>
-                    </div>
-                    {item.descripcion && (
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-2">{item.descripcion}</p>
-                    )}
-                    <div className="flex items-center justify-between mt-3">
-                      <Badge variant="gray">{item.categoria}</Badge>
-                      <span className="text-sm font-bold text-amber-600">
-                        {formatCurrency(item.precio, item.moneda)}
-                      </span>
-                    </div>
-                    {item.tags && item.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {item.tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">{tag}</span>
-                        ))}
+                {menuItems.map((item) => {
+                  const mainImg = item.imagenes?.find((i) => i.principal) ?? item.imagenes?.[0];
+                  const imgSrc = mainImg
+                    ? (mainImg.url.startsWith("http") ? mainImg.url : `http://localhost:4000${mainImg.url}`)
+                    : null;
+                  return (
+                    <div key={item._id} className="bg-white rounded-2xl border border-slate-200/60 shadow-soft overflow-hidden hover:shadow-float transition-shadow">
+                      {/* Imagen */}
+                      {imgSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={imgSrc} alt={item.nombre} className="w-full h-36 object-cover" />
+                      ) : (
+                        <div className="w-full h-36 bg-slate-100 flex items-center justify-center">
+                          <span className="text-2xl font-black text-slate-300 select-none">
+                            {item.nombre.slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3 className="font-semibold text-slate-900 text-sm leading-tight">{item.nombre}</h3>
+                          <Badge variant={item.disponible ? "green" : "red"} className="shrink-0 text-[10px]">
+                            {item.disponible ? "Disponible" : "No disponible"}
+                          </Badge>
+                        </div>
+                        {item.descripcion && (
+                          <p className="text-xs text-slate-500 line-clamp-2 mb-3">{item.descripcion}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <Badge variant="gray">{item.categoria}</Badge>
+                          <span className="text-sm font-bold text-brand-600">
+                            {formatCurrency(item.precio, item.moneda)}
+                          </span>
+                        </div>
+                        {item.tags && item.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {item.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">{tag}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

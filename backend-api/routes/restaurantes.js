@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { getDb }  = require("../lib/mongodb");
+const { getDb } = require("../lib/mongodb");
 const { ObjectId } = require("mongodb");
 
 const router = Router();
@@ -14,16 +14,21 @@ router.get("/", async (req, res) => {
   try {
     const db = await getDb();
     const {
-      estado, categoria_principal,
+      estado, categoria, categoria_principal,
       q,
       lat, lng, maxKm,
       sort = "rating", order = "desc",
       page = 1, limit = 20,
     } = req.query;
 
-    const pageN  = Math.max(1, parseInt(page));
+    const pageN = Math.max(1, parseInt(page));
     const limitN = Math.min(100, Math.max(1, parseInt(limit)));
-    const skip   = (pageN - 1) * limitN;
+    const skip = (pageN - 1) * limitN;
+
+    const baseFilter = {};
+    if (estado) baseFilter.estado = estado;
+    if (categoria) baseFilter.categoria_principal = categoria;
+    if (categoria_principal) baseFilter.categoria_principal = categoria_principal;
 
     // Busqueda geoespacial — usa idx_restaurantes_ubicacion_geo_2dsphere
     if (lat && lng) {
@@ -35,7 +40,7 @@ router.get("/", async (req, res) => {
             distanceField: "distancia_m",
             maxDistance: maxMeters,
             spherical: true,
-            query: estado ? { estado } : {},
+            query: baseFilter,
           },
         },
         {
@@ -60,8 +65,7 @@ router.get("/", async (req, res) => {
       ]).toArray();
       const restIds = menuItems.map((m) => m._id);
 
-      const filter = { _id: { $in: restIds } };
-      if (estado) filter.estado = estado;
+      const filter = { ...baseFilter, _id: { $in: restIds } };
 
       const docs = await db.collection("restaurantes")
         .find(filter, { projection: { nombre: 1, categoria_principal: 1, estadisticas: 1, ubicacion: 1 } })
@@ -75,12 +79,10 @@ router.get("/", async (req, res) => {
     }
 
     // Lista general con filtros — coleccion pequena (~5,000 docs), COLLSCAN aceptable
-    const filter = {};
-    if (estado) filter.estado = estado;
-    if (categoria_principal) filter.categoria_principal = categoria_principal;
+    const filter = { ...baseFilter };
 
     const sortField = sort === "nombre" ? "nombre" : sort === "fecha" ? "fecha_creacion" : "estadisticas.rating_promedio";
-    const sortDir   = order === "asc" ? 1 : -1;
+    const sortDir = order === "asc" ? 1 : -1;
 
     const [docs, total] = await Promise.all([
       db.collection("restaurantes")
@@ -110,7 +112,7 @@ router.get("/", async (req, res) => {
 router.get("/stats/count", async (req, res) => {
   try {
     const db = await getDb();
-    const activos   = await db.collection("restaurantes").countDocuments({ estado: "activo" });
+    const activos = await db.collection("restaurantes").countDocuments({ estado: "activo" });
     const inactivos = await db.collection("restaurantes").countDocuments({ estado: "inactivo" });
     const categorias = await db.collection("restaurantes").distinct("categoria_principal");
     res.json({ data: { activos, inactivos, total: activos + inactivos, categorias_distintas: categorias.length } });
@@ -137,7 +139,7 @@ router.get("/stats/categorias", async (req, res) => {
 // ---------------------------------------------------------------
 router.get("/:id", async (req, res) => {
   try {
-    const db  = await getDb();
+    const db = await getDb();
     const _id = new ObjectId(req.params.id);
 
     const doc = await db.collection("restaurantes").findOne(
@@ -156,23 +158,23 @@ router.get("/:id", async (req, res) => {
 // ---------------------------------------------------------------
 router.post("/", async (req, res) => {
   try {
-    const db   = await getDb();
+    const db = await getDb();
     const body = req.body;
 
     if (!body.nombre) return res.status(400).json({ error: "nombre es obligatorio" });
 
     const doc = {
-      nombre:              body.nombre.trim(),
-      slug:                (body.slug || body.nombre).toLowerCase().replace(/\s+/g, "-"),
+      nombre: body.nombre.trim(),
+      slug: (body.slug || body.nombre).toLowerCase().replace(/\s+/g, "-"),
       categoria_principal: body.categoria_principal || "",
-      categorias:          Array.isArray(body.categorias) ? body.categorias : [],
-      descripcion:         body.descripcion || "",
-      estado:              body.estado || "activo",
-      contacto:            body.contacto || {},
-      ubicacion:           body.ubicacion || {},
-      horarios:            Array.isArray(body.horarios) ? body.horarios : [],
-      estadisticas:        { rating_promedio: 0, total_resenas: 0, total_ordenes: 0 },
-      fecha_creacion:      new Date(),
+      categorias: Array.isArray(body.categorias) ? body.categorias : [],
+      descripcion: body.descripcion || "",
+      estado: body.estado || "activo",
+      contacto: body.contacto || {},
+      ubicacion: body.ubicacion || {},
+      horarios: Array.isArray(body.horarios) ? body.horarios : [],
+      estadisticas: { rating_promedio: 0, total_resenas: 0, total_ordenes: 0 },
+      fecha_creacion: new Date(),
       fecha_actualizacion: new Date(),
     };
 
@@ -188,8 +190,8 @@ router.post("/", async (req, res) => {
 // ---------------------------------------------------------------
 router.put("/:id", async (req, res) => {
   try {
-    const db   = await getDb();
-    const _id  = new ObjectId(req.params.id);
+    const db = await getDb();
+    const _id = new ObjectId(req.params.id);
     const body = req.body;
 
     const allowed = ["nombre", "descripcion", "estado", "contacto", "horarios", "categorias", "categoria_principal", "ubicacion"];
@@ -209,8 +211,8 @@ router.put("/:id", async (req, res) => {
 // ---------------------------------------------------------------
 router.post("/:id/categorias", async (req, res) => {
   try {
-    const db       = await getDb();
-    const _id      = new ObjectId(req.params.id);
+    const db = await getDb();
+    const _id = new ObjectId(req.params.id);
     const { categoria } = req.body;
     if (!categoria) return res.status(400).json({ error: "categoria es obligatorio" });
 

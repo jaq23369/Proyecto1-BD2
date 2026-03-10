@@ -22,13 +22,13 @@ interface ButtonProps {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-gradient-to-r from-brand-400 to-brand-600 text-white shadow-brand-500/25 shadow-lg hover:shadow-brand-500/40 focus:ring-brand-400 hover:scale-[1.02]",
+    "bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700 focus:ring-brand-500",
   secondary:
     "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200/80 hover:bg-slate-50 hover:text-slate-900 focus:ring-slate-300",
   ghost:
     "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-200",
   danger:
-    "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-rose-500/25 shadow-lg hover:shadow-rose-500/40 focus:ring-rose-400 hover:scale-[1.02]",
+    "bg-rose-600 text-white shadow-sm shadow-rose-600/20 hover:bg-rose-700 focus:ring-rose-400",
 };
 
 const sizeClasses: Record<Size, string> = {
