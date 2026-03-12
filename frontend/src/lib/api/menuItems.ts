@@ -30,6 +30,6 @@ export const menuItemsApi = {
     form.append("principal", String(principal));
     return api.post<{ data: { url: string; principal: boolean }[] }>(`/api/menu-items/${id}/imagen`, form);
   },
-  deleteImagen: (id: string, url: string) =>
-    api.delete<{ data: { url: string; principal: boolean }[] }>(`/api/menu-items/${id}/imagen`, { url }),
+  deleteImagen: (id: string, fileId: string) =>
+    api.delete<{ data: { fileId: string; url: string; principal: boolean }[] }>(`/api/menu-items/${id}/imagen`, { fileId }),
 };

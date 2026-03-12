@@ -1,11 +1,12 @@
 const { Router }   = require("express");
-const { getDb, getClient } = require("../lib/mongodb");
-const { ObjectId, GridFSBucket } = require("mongodb");
-const multer   = require("multer");
+const { getDb }    = require("../lib/mongodb");
+const { ObjectId } = require("mongodb");
+const multer       = require("multer");
+const crypto       = require("crypto");
 
 const router = Router();
 
-// Multer en memoria → GridFS
+// Multer en memoria → base64 embebido en el documento
 const imgUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
@@ -14,12 +15,6 @@ const imgUpload = multer({
     cb(ok ? null : new Error("Solo se permiten imágenes"), ok);
   },
 });
-
-async function getBucket() {
-  const client = await getClient();
-  const db = client.db("restaurantes_db");
-  return new GridFSBucket(db, { bucketName: "uploads" });
-}
 
 // ---------------------------------------------------------------
 // GET /api/menu-items
@@ -274,7 +269,7 @@ router.delete("/:id/tags/:tag", async (req, res) => {
 
 // ---------------------------------------------------------------
 // POST /api/menu-items/:id/imagen
-// Sube imagen a GridFS y hace $push a menu_items.imagenes
+// Convierte la imagen a base64 y la guarda en menu_items.imagenes
 // Body: multipart/form-data, campo "file". Opcional: "principal" (bool)
 // ---------------------------------------------------------------
 router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
@@ -286,22 +281,10 @@ router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
     const doc = await db.collection("menu_items").findOne({ _id });
     if (!doc) return res.status(404).json({ error: "Menu item no encontrado" });
 
-    // Subir a GridFS
-    const bucket = await getBucket();
-    const uploadStream = bucket.openUploadStream(req.file.originalname, {
-      metadata: { mimetype: req.file.mimetype },
-    });
-    uploadStream.end(req.file.buffer);
-
-    await new Promise((resolve, reject) => {
-      uploadStream.on("finish", resolve);
-      uploadStream.on("error", reject);
-    });
-
     const isPrincipal = req.body.principal === "true";
-    const imgEntry = { url: `/api/uploads/${uploadStream.id}`, principal: isPrincipal };
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const imgEntry = { fileId: crypto.randomUUID(), url: dataUrl, principal: isPrincipal };
 
-    // Si es principal, desmarcar las demás
     if (isPrincipal) {
       await db.collection("menu_items").updateOne(
         { _id },
@@ -322,31 +305,22 @@ router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
 
 // ---------------------------------------------------------------
 // DELETE /api/menu-items/:id/imagen
-// Body JSON: { url: "/api/uploads/<objectId>" }
-// Elimina del array y de GridFS
+// Body JSON: { fileId: "uuid" }
+// Elimina la imagen del array (el base64 vive solo en el documento)
 // ---------------------------------------------------------------
 router.delete("/:id/imagen", async (req, res) => {
   try {
     const db  = await getDb();
     const _id = new ObjectId(req.params.id);
-    const { url: urlToRemove } = req.body;
+    const { fileId } = req.body;
 
-    if (!urlToRemove) return res.status(400).json({ error: "url es obligatorio en el body" });
+    if (!fileId) return res.status(400).json({ error: "fileId es obligatorio en el body" });
 
     const result = await db.collection("menu_items").updateOne(
       { _id },
-      { $pull: { imagenes: { url: urlToRemove } }, $set: { fecha_actualizacion: new Date() } }
+      { $pull: { imagenes: { fileId } }, $set: { fecha_actualizacion: new Date() } }
     );
     if (result.matchedCount === 0) return res.status(404).json({ error: "Menu item no encontrado" });
-
-    // Eliminar de GridFS si es una URL de GridFS
-    if (urlToRemove.startsWith("/api/uploads/")) {
-      try {
-        const fileId = urlToRemove.replace("/api/uploads/", "");
-        const bucket = await getBucket();
-        await bucket.delete(new ObjectId(fileId));
-      } catch { /* archivo ya no existe en GridFS */ }
-    }
 
     const updated = await db.collection("menu_items").findOne({ _id }, { projection: { imagenes: 1 } });
     res.json({ data: updated.imagenes });

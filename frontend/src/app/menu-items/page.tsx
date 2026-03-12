@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Edit, Trash2, Utensils, ImagePlus, X as XIcon } from "lucide-react";
 import { menuItemsApi } from "@/lib/api/menuItems";
 import { restaurantesApi } from "@/lib/api/restaurantes";
-import { BASE_URL } from "@/lib/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Badge } from "@/components/ui/Badge";
@@ -106,10 +105,10 @@ export default function MenuItemsPage() {
     }
   }
 
-  async function handleImageDelete(url: string) {
+  async function handleImageDelete(fileId: string) {
     if (!editTarget) return;
     try {
-      const res = await menuItemsApi.deleteImagen(editTarget._id, url);
+      const res = await menuItemsApi.deleteImagen(editTarget._id, fileId);
       setEditImagenes(res.data);
       toast("Imagen eliminada", "success");
       fetchItems();
@@ -328,10 +327,9 @@ export default function MenuItemsPage() {
                 {/* Imagen principal */}
                 {item.imagenes?.length > 0 && (() => {
                   const img = item.imagenes.find((i) => i.principal) ?? item.imagenes[0];
-                  const src = img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`;
                   return (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={src} alt={item.nombre} className="w-full h-28 object-cover" />
+                    <img src={img.url} alt={item.nombre} className="w-full h-28 object-cover" />
                   );
                 })()}
                 <div className="p-4 flex flex-col gap-2 flex-1">
@@ -391,26 +389,23 @@ export default function MenuItemsPage() {
           <div>
             <p className="text-sm font-semibold text-slate-700 mb-2">Imágenes</p>
             <div className="flex flex-wrap gap-2 mb-3">
-              {editImagenes.map((img) => {
-                const displaySrc = img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`;
-                return (
-                  <div key={img.url} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
+              {editImagenes.map((img) => (
+                  <div key={img.fileId} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={displaySrc} alt="" className="w-full h-full object-cover" />
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
                     {img.principal && (
                       <span className="absolute top-1 left-1 text-[9px] font-bold bg-brand-600 text-white px-1.5 py-0.5 rounded-full">
                         Principal
                       </span>
                     )}
                     <button
-                      onClick={() => handleImageDelete(img.url)}
+                      onClick={() => handleImageDelete(img.fileId)}
                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     >
                       <XIcon size={10} />
                     </button>
                   </div>
-                );
-              })}
+              ))}
               {editImagenes.length === 0 && (
                 <p className="text-xs text-slate-400">Sin imágenes</p>
               )}

@@ -43,7 +43,7 @@ export interface MenuItem {
   moneda: string;
   disponible: boolean;
   tags: string[];
-  imagenes: Array<{ url: string; principal: boolean }>;
+  imagenes: Array<{ fileId: string; url: string; principal: boolean }>;
   opciones: Array<{ nombre: string; valores: Array<{ nombre: string; incremento: number }> }>;
   metricas: { veces_pedido: number };
 }
