@@ -152,6 +152,25 @@ ensureIndex(
   "Búsqueda por nombre/descripcion/tags con ponderación."
 );
 
+// 5B) Índice de texto: búsqueda textual en restaurantes por nombre
+ensureIndex(
+  "restaurantes",
+  {
+    nombre: "text",
+    descripcion: "text",
+    categoria_principal: "text",
+  },
+  {
+    name: "idx_restaurantes_text_search",
+    weights: {
+      nombre: 10,
+      categoria_principal: 5,
+      descripcion: 2,
+    },
+  },
+  "Búsqueda por nombre/descripcion/categoria de restaurantes."
+);
+
 // 6A) Índice adicional: reseñas por restaurante y fecha
 ensureIndex(
   "resenas",

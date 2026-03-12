@@ -1,76 +1,122 @@
-const path    = require("path");
-const fs      = require("fs");
 const { Router } = require("express");
 const multer  = require("multer");
-const { v4: uuidv4 } = require("uuid");
+const { ObjectId, GridFSBucket } = require("mongodb");
+const { getClient } = require("../lib/mongodb");
 
 const router = Router();
 
-const UPLOAD_DIR = path.join(__dirname, "..", "public", "uploads");
-
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename:    (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
-
+// Multer: memoria RAM → luego lo volcamos a GridFS
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 16 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const extOk = /\.(jpeg|jpg|png|gif|webp|pdf|txt|csv)$/.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    cb(extOk ? null : new Error("Tipo de archivo no permitido"), extOk);
+    const ok = /\.(jpeg|jpg|png|gif|webp|pdf|txt|csv)$/i.test(file.originalname);
+    cb(ok ? null : new Error("Tipo de archivo no permitido"), ok);
   },
 });
 
+async function getBucket() {
+  const client = await getClient();
+  const db = client.db("restaurantes_db");
+  return new GridFSBucket(db, { bucketName: "uploads" });
+}
+
 // ---------------------------------------------------------------
-// POST /api/uploads — guarda en disco y devuelve URL relativa
+// POST /api/uploads — sube archivo a GridFS
 // ---------------------------------------------------------------
-router.post("/", upload.single("file"), (req, res) => {
+router.post("/", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Se requiere un archivo en el campo 'file'" });
 
-  const url = `/uploads/${req.file.filename}`;
-  res.status(201).json({
-    data: {
-      fileId:   req.file.filename,
-      filename: req.file.originalname,
-      size:     req.file.size,
-      mimetype: req.file.mimetype,
-      url,
-    },
-  });
-});
-
-// ---------------------------------------------------------------
-// GET /api/uploads — lista archivos del disco
-// ---------------------------------------------------------------
-router.get("/", (req, res) => {
   try {
-    const files = fs.readdirSync(UPLOAD_DIR).map((name) => {
-      const stat = fs.statSync(path.join(UPLOAD_DIR, name));
-      return { fileId: name, filename: name, size: stat.size, url: `/uploads/${name}`, fecha_subida: stat.mtime };
+    const bucket = await getBucket();
+    const uploadStream = bucket.openUploadStream(req.file.originalname, {
+      metadata: {
+        mimetype:    req.file.mimetype,
+        descripcion: req.body.descripcion || "",
+        tipo:        req.body.tipo        || "",
+        ref_id:      req.body.ref_id      || "",
+      },
     });
-    files.sort((a, b) => new Date(b.fecha_subida) - new Date(a.fecha_subida));
-    res.json({ data: files, meta: { total: files.length } });
+
+    uploadStream.end(req.file.buffer);
+
+    uploadStream.on("finish", () => {
+      res.status(201).json({
+        data: {
+          fileId:    uploadStream.id.toString(),
+          filename:  req.file.originalname,
+          size:      req.file.size,
+          mimetype:  req.file.mimetype,
+          url:       `/api/uploads/${uploadStream.id}`,
+        },
+      });
+    });
+
+    uploadStream.on("error", (err) => res.status(500).json({ error: err.message }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // ---------------------------------------------------------------
-// DELETE /api/uploads/:filename — elimina del disco
+// GET /api/uploads — lista archivos en GridFS
 // ---------------------------------------------------------------
-router.delete("/:filename", (req, res) => {
-  const filePath = path.join(UPLOAD_DIR, path.basename(req.params.filename));
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Archivo no encontrado" });
-  fs.unlinkSync(filePath);
-  res.json({ data: { deleted: req.params.filename } });
+router.get("/", async (_req, res) => {
+  try {
+    const bucket = await getBucket();
+    const files = await bucket.find({}).sort({ uploadDate: -1 }).limit(200).toArray();
+    const data = files.map((f) => ({
+      fileId:      f._id.toString(),
+      filename:    f.filename,
+      size:        f.length,
+      mimetype:    f.metadata?.mimetype    || "",
+      tipo:        f.metadata?.tipo        || "",
+      descripcion: f.metadata?.descripcion || "",
+      url:         `/api/uploads/${f._id}`,
+      fecha_subida: f.uploadDate,
+    }));
+    res.json({ data, meta: { total: data.length } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------
+// GET /api/uploads/:id — sirve el archivo desde GridFS (streaming)
+// ---------------------------------------------------------------
+router.get("/:id", async (req, res) => {
+  try {
+    const bucket = await getBucket();
+    const _id = new ObjectId(req.params.id);
+
+    const files = await bucket.find({ _id }).toArray();
+    if (!files.length) return res.status(404).json({ error: "Archivo no encontrado" });
+
+    const file = files[0];
+    res.set("Content-Type", file.metadata?.mimetype || "application/octet-stream");
+    res.set("Content-Disposition", `inline; filename="${file.filename}"`);
+    res.set("Cache-Control", "public, max-age=31536000");
+
+    const downloadStream = bucket.openDownloadStream(_id);
+    downloadStream.pipe(res);
+    downloadStream.on("error", () => res.status(404).json({ error: "Archivo no encontrado" }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------
+// DELETE /api/uploads/:id — elimina de GridFS
+// ---------------------------------------------------------------
+router.delete("/:id", async (req, res) => {
+  try {
+    const bucket = await getBucket();
+    const _id = new ObjectId(req.params.id);
+    await bucket.delete(_id);
+    res.json({ data: { deleted: req.params.id } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

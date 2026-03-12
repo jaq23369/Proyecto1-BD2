@@ -1,5 +1,4 @@
 require("dotenv").config();
-const path         = require("path");
 const express      = require("express");
 const cors         = require("cors");
 const cookieParser = require("cookie-parser");
@@ -21,7 +20,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
-app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 app.use("/api/auth",        authRouter);
 app.use("/api/restaurantes", restaurantesRouter);

@@ -105,7 +105,7 @@ export function RestauranteFilters({
           </div>
           <input
             type="text"
-            placeholder="Buscar restaurante..."
+            placeholder="Buscar por nombre, categoría o platos..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="w-full pl-11 pr-10 py-3 rounded-2xl bg-white text-sm font-medium text-slate-900 placeholder:text-slate-400 shadow-soft border-transparent ring-1 ring-slate-200/50 hover:ring-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-300"

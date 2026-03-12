@@ -57,24 +57,28 @@ router.get("/", async (req, res) => {
       return res.json({ data: docs, meta: { page: pageN, limit: limitN } });
     }
 
-    // Busqueda de texto en menu_items — usa idx_menu_items_text_search
+    // Busqueda de texto — usa idx_restaurantes_text_search
+    // Ordena por textScore (relevancia) para que coincidencias de nombre
+    // aparezcan primero (peso 10) antes que descripcion (peso 2) o categoria (peso 5).
     if (q) {
-      const menuItems = await db.collection("menu_items").aggregate([
-        { $match: { $text: { $search: q }, disponible: true } },
-        { $group: { _id: "$restaurante_id" } },
-      ]).toArray();
-      const restIds = menuItems.map((m) => m._id);
+      const textFilter = { ...baseFilter, $text: { $search: q } };
 
-      const filter = { ...baseFilter, _id: { $in: restIds } };
+      const [docs, total] = await Promise.all([
+        db.collection("restaurantes")
+          .find(textFilter, {
+            projection: {
+              nombre: 1, categoria_principal: 1, categorias: 1,
+              descripcion: 1, estado: 1, estadisticas: 1, ubicacion: 1, slug: 1,
+              score: { $meta: "textScore" },
+            },
+          })
+          .sort({ score: { $meta: "textScore" }, "estadisticas.rating_promedio": -1 })
+          .skip(skip)
+          .limit(limitN)
+          .toArray(),
+        db.collection("restaurantes").countDocuments(textFilter),
+      ]);
 
-      const docs = await db.collection("restaurantes")
-        .find(filter, { projection: { nombre: 1, categoria_principal: 1, estadisticas: 1, ubicacion: 1 } })
-        .sort({ "estadisticas.rating_promedio": -1 })
-        .skip(skip)
-        .limit(limitN)
-        .toArray();
-
-      const total = await db.collection("restaurantes").countDocuments(filter);
       return res.json({ data: docs, meta: { total, page: pageN, limit: limitN } });
     }
 
