@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Edit, Trash2, Utensils, ImagePlus, X as XIcon } from "lucide-react";
 import { menuItemsApi } from "@/lib/api/menuItems";
 import { restaurantesApi } from "@/lib/api/restaurantes";
+import { BASE_URL } from "@/lib/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Badge } from "@/components/ui/Badge";
@@ -327,7 +328,7 @@ export default function MenuItemsPage() {
                 {/* Imagen principal */}
                 {item.imagenes?.length > 0 && (() => {
                   const img = item.imagenes.find((i) => i.principal) ?? item.imagenes[0];
-                  const src = img.url.startsWith("http") ? img.url : `http://localhost:4000${img.url}`;
+                  const src = img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`;
                   return (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={src} alt={item.nombre} className="w-full h-28 object-cover" />
@@ -391,7 +392,7 @@ export default function MenuItemsPage() {
             <p className="text-sm font-semibold text-slate-700 mb-2">Imágenes</p>
             <div className="flex flex-wrap gap-2 mb-3">
               {editImagenes.map((img) => {
-                const displaySrc = img.url.startsWith("http") ? img.url : `http://localhost:4000${img.url}`;
+                const displaySrc = img.url.startsWith("http") ? img.url : `${BASE_URL}${img.url}`;
                 return (
                   <div key={img.url} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

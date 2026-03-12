@@ -1,30 +1,25 @@
-const path     = require("path");
-const fs       = require("fs");
 const { Router }   = require("express");
-const { getDb }    = require("../lib/mongodb");
-const { ObjectId } = require("mongodb");
+const { getDb, getClient } = require("../lib/mongodb");
+const { ObjectId, GridFSBucket } = require("mongodb");
 const multer   = require("multer");
-const { v4: uuidv4 } = require("uuid");
 
 const router = Router();
 
-const UPLOAD_DIR = path.join(__dirname, "..", "public", "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
+// Multer en memoria → GridFS
 const imgUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-    filename:    (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${uuidv4()}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ok = /\.(jpeg|jpg|png|gif|webp)$/.test(path.extname(file.originalname).toLowerCase());
+    const ok = /\.(jpeg|jpg|png|gif|webp)$/i.test(file.originalname);
     cb(ok ? null : new Error("Solo se permiten imágenes"), ok);
   },
 });
+
+async function getBucket() {
+  const client = await getClient();
+  const db = client.db("restaurantes_db");
+  return new GridFSBucket(db, { bucketName: "uploads" });
+}
 
 // ---------------------------------------------------------------
 // GET /api/menu-items
@@ -279,25 +274,33 @@ router.delete("/:id/tags/:tag", async (req, res) => {
 
 // ---------------------------------------------------------------
 // POST /api/menu-items/:id/imagen
-// Sube una imagen al disco y hace $push a menu_items.imagenes
+// Sube imagen a GridFS y hace $push a menu_items.imagenes
 // Body: multipart/form-data, campo "file". Opcional: "principal" (bool)
 // ---------------------------------------------------------------
 router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Se requiere un archivo de imagen en el campo 'file'" });
   try {
-    if (!req.file) return res.status(400).json({ error: "Se requiere un archivo de imagen en el campo 'file'" });
     const db  = await getDb();
     const _id = new ObjectId(req.params.id);
 
     const doc = await db.collection("menu_items").findOne({ _id });
-    if (!doc) {
-      fs.unlinkSync(req.file.path); // limpiar archivo si el item no existe
-      return res.status(404).json({ error: "Menu item no encontrado" });
-    }
+    if (!doc) return res.status(404).json({ error: "Menu item no encontrado" });
+
+    // Subir a GridFS
+    const bucket = await getBucket();
+    const uploadStream = bucket.openUploadStream(req.file.originalname, {
+      metadata: { mimetype: req.file.mimetype },
+    });
+    uploadStream.end(req.file.buffer);
+
+    await new Promise((resolve, reject) => {
+      uploadStream.on("finish", resolve);
+      uploadStream.on("error", reject);
+    });
 
     const isPrincipal = req.body.principal === "true";
-    const imgEntry = { url: `/uploads/${req.file.filename}`, principal: isPrincipal };
+    const imgEntry = { url: `/api/uploads/${uploadStream.id}`, principal: isPrincipal };
 
-    const update = { $push: { imagenes: imgEntry }, $set: { fecha_actualizacion: new Date() } };
     // Si es principal, desmarcar las demás
     if (isPrincipal) {
       await db.collection("menu_items").updateOne(
@@ -305,7 +308,10 @@ router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
         { $set: { "imagenes.$[].principal": false } }
       );
     }
-    await db.collection("menu_items").updateOne({ _id }, update);
+    await db.collection("menu_items").updateOne(
+      { _id },
+      { $push: { imagenes: imgEntry }, $set: { fecha_actualizacion: new Date() } }
+    );
 
     const updated = await db.collection("menu_items").findOne({ _id }, { projection: { imagenes: 1 } });
     res.status(201).json({ data: updated.imagenes });
@@ -316,8 +322,8 @@ router.post("/:id/imagen", imgUpload.single("file"), async (req, res) => {
 
 // ---------------------------------------------------------------
 // DELETE /api/menu-items/:id/imagen
-// Body JSON: { url: "/uploads/uuid.jpg" } o URL externa
-// Elimina del array y del disco si es local
+// Body JSON: { url: "/api/uploads/<objectId>" }
+// Elimina del array y de GridFS
 // ---------------------------------------------------------------
 router.delete("/:id/imagen", async (req, res) => {
   try {
@@ -333,11 +339,13 @@ router.delete("/:id/imagen", async (req, res) => {
     );
     if (result.matchedCount === 0) return res.status(404).json({ error: "Menu item no encontrado" });
 
-    // Solo eliminar del disco si es una imagen local (/uploads/...)
-    if (urlToRemove.startsWith("/uploads/")) {
-      const filename = path.basename(urlToRemove);
-      const filePath = path.join(UPLOAD_DIR, filename);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // Eliminar de GridFS si es una URL de GridFS
+    if (urlToRemove.startsWith("/api/uploads/")) {
+      try {
+        const fileId = urlToRemove.replace("/api/uploads/", "");
+        const bucket = await getBucket();
+        await bucket.delete(new ObjectId(fileId));
+      } catch { /* archivo ya no existe en GridFS */ }
     }
 
     const updated = await db.collection("menu_items").findOne({ _id }, { projection: { imagenes: 1 } });
