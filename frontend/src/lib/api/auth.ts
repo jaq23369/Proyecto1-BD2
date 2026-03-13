@@ -2,7 +2,7 @@ import { api } from "./client";
 import type { AuthUser, SingleResponse } from "@/types";
 
 export const authApi = {
-  register: (data: { nombre: string; email: string; password: string; tipo_usuario?: string }) =>
+  register: (data: { nombre: string; email: string; password: string; tipo_usuario?: string; telefono?: string; direccion_principal?: { alias: string; direccion_texto: string } }) =>
     api.post<SingleResponse<AuthUser>>("/api/auth/register", data),
 
   login: (data: { email: string; password: string }) =>

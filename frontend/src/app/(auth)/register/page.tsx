@@ -26,6 +26,9 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tipo, setTipo] = useState<"cliente" | "admin">("cliente");
+  const [telefono, setTelefono] = useState("");
+  const [dirAlias, setDirAlias] = useState("");
+  const [dirTexto, setDirTexto] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
@@ -40,7 +43,16 @@ export default function RegisterPage() {
     }
     setIsLoading(true);
     try {
-      await authApi.register({ nombre, email, password, tipo_usuario: tipo });
+      await authApi.register({
+        nombre,
+        email,
+        password,
+        tipo_usuario: tipo,
+        telefono: telefono || undefined,
+        direccion_principal: dirAlias && dirTexto
+          ? { alias: dirAlias, direccion_texto: dirTexto }
+          : undefined,
+      });
       await refresh();
       toast("Cuenta creada exitosamente", "success");
       router.push("/restaurantes");
@@ -110,6 +122,29 @@ export default function RegisterPage() {
               value={tipo}
               onChange={(e) => setTipo(e.target.value as "cliente" | "admin")}
             />
+            <Input
+              label="Telefono (opcional)"
+              type="tel"
+              placeholder="+502 1234 5678"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              autoComplete="tel"
+            />
+            <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Dirección principal (opcional)</p>
+              <Input
+                label="Alias"
+                placeholder="Casa, Trabajo, etc."
+                value={dirAlias}
+                onChange={(e) => setDirAlias(e.target.value)}
+              />
+              <Input
+                label="Dirección"
+                placeholder="Calle, ciudad, país"
+                value={dirTexto}
+                onChange={(e) => setDirTexto(e.target.value)}
+              />
+            </div>
             <Button
               type="submit"
               variant="primary"
